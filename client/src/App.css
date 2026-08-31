@@ -39,11 +39,16 @@
 html,
 body,
 #root {
-  height: 100%;
-  /* Prevents the whole page from scrolling on mobile when the viewport
-     height is momentarily wrong (address bar showing/hiding, keyboard
-     opening) — only the .chat message list scrolls internally instead. */
-  overflow: hidden;
+  /* min-height (not a fixed height) plus no overflow override here is
+     deliberate: it lets ordinary page scrolling be the safety net. If the
+     measured app height (--app-height / dvh) is ever even slightly off —
+     address bar mid-animation, an odd device — the shell can end up a
+     little taller than the visible viewport. With a fixed height +
+     overflow:hidden here, any content pushed past the fold (e.g. the
+     header) would be permanently unreachable, with nothing to scroll.
+     Leaving this as normal in-flow content means the browser's own
+     scrolling always makes the full page reachable, no matter what. */
+  min-height: 100%;
 }
 
 body {
