@@ -36,12 +36,21 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  /* Prevents the whole page from scrolling on mobile when the viewport
+     height is momentarily wrong (address bar showing/hiding, keyboard
+     opening) — only the .chat message list scrolls internally instead. */
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  min-height: 100vh;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
@@ -49,7 +58,8 @@ body {
 .app-shell {
   display: flex;
   width: 100%;
-  height: 100vh;
+  height: 100vh; /* fallback for older browsers */
+  height: 100dvh; /* actual visible viewport on mobile, excludes the address bar */
   max-width: 1100px;
   margin: 0 auto;
   padding: 24px;
@@ -230,6 +240,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  /* Anchors a short conversation to the bottom (next to the input box)
+     instead of leaving a large empty gap below it — matches how
+     WhatsApp/iMessage/ChatGPT behave. Once there are enough messages to
+     fill the space, this has no visible effect and it scrolls normally. */
+  justify-content: flex-end;
 }
 
 .chat__empty {
@@ -416,6 +431,8 @@ body {
   align-items: flex-end;
   gap: 10px;
   padding: 14px;
+  /* Keeps the input clear of the home-indicator bar on notched iPhones. */
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
 }
 
@@ -467,8 +484,10 @@ body {
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
-    width: 240px;
+    height: 100vh; /* fallback */
+    height: 100dvh;
+    width: 80vw;
+    max-width: 280px;
     border-radius: 0;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
@@ -479,8 +498,31 @@ body {
     transform: translateX(0);
   }
 
+  /* Tap-anywhere-to-close backdrop, shown only while the sidebar is open. */
+  .sidebar-backdrop {
+    display: none;
+  }
+  .sidebar-backdrop--visible {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 15;
+  }
+
   .chat-window {
     border-radius: 0;
     border: none;
+  }
+
+  /* iOS Safari zooms the whole page in when a focused input's font-size
+     is under 16px — this keeps the keyboard from triggering that zoom,
+     which is what makes the layout look "broken" until you zoom back out. */
+  .chat-form textarea {
+    font-size: 16px;
+  }
+
+  .message-col {
+    max-width: 88%;
   }
 }

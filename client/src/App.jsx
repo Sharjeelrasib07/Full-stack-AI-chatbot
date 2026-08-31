@@ -14,9 +14,12 @@ import {
 } from "./lib/storage";
 import "./App.css";
 
-// The backend Express server's address. In production this would move to
-// an environment variable, but a constant keeps the local demo simple.
-const API_URL = "http://localhost:8000/api/chat";
+// The backend Express server's address. Reads from VITE_API_BASE_URL so
+// the deployed frontend can point at the deployed backend instead of
+// localhost — set that env var in your hosting provider's dashboard when
+// you deploy. Falls back to localhost:8000 for local development.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_URL = `${API_BASE_URL}/api/chat`;
 
 export default function App() {
   const [conversations, setConversations] = useState(() => {
@@ -173,7 +176,7 @@ export default function App() {
         setError("The AI didn't return a reply. Please try again.");
       }
     } catch (err) {
-      setError("Could not reach the backend server. Is it running on port 8000?");
+      setError(`Could not reach the backend server at ${API_BASE_URL}. Check that it's running and reachable.`);
     } finally {
       setIsSending(false);
       setIsWaitingForFirstToken(false);
@@ -182,6 +185,12 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {/* Tap-outside-to-close backdrop for the mobile sidebar. Only ever
+          rendered (and clickable) while the sidebar is actually open. */}
+      <div
+        className={`sidebar-backdrop ${isSidebarOpen ? "sidebar-backdrop--visible" : ""}`}
+        onClick={() => setIsSidebarOpen(false)}
+      />
       <Sidebar
         conversations={conversations}
         activeId={activeConversation?.id}
