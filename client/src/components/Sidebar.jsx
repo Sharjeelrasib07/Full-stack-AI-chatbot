@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { IconBot, IconPlus, IconTrash, IconSun, IconMoon, IconSearch, IconEdit, IconSettings } from "./Icons";
+import { IconSparkWave, IconPlus, IconTrash, IconSun, IconMoon, IconSearch, IconEdit, IconSettings } from "./Icons";
+import PersonaIcon from "./PersonaIcon";
 
 // Pulls plain text out of a message's `content` regardless of shape — a
 // user message with an image attached stores content as a multimodal
@@ -34,6 +35,9 @@ export default function Sidebar({
   onToggleTheme,
   isOpen,
   onOpenSettings,
+  activePersona,
+  onOpenPersonas,
+  onOpenPalette,
 }) {
   const [query, setQuery] = useState("");
   const [renamingId, setRenamingId] = useState(null);
@@ -69,10 +73,28 @@ export default function Sidebar({
     <aside className={`sidebar ${isOpen ? "sidebar--open" : ""}`}>
       <div className="sidebar__brand">
         <span className="sidebar__brand-mark">
-          <IconBot />
+          <IconSparkWave width="16" height="16" />
         </span>
         <span className="sidebar__brand-name">AI Chatbot</span>
       </div>
+
+      {activePersona && (
+        <button
+          type="button"
+          className="sidebar__persona-pill"
+          style={{ "--persona-color": activePersona.color }}
+          onClick={onOpenPersonas}
+          title="Change persona"
+        >
+          <span className="sidebar__persona-pill-icon">
+            <PersonaIcon icon={activePersona.icon} />
+          </span>
+          <span className="sidebar__persona-pill-text">
+            <span className="sidebar__persona-pill-label">Persona</span>
+            <span className="sidebar__persona-pill-name">{activePersona.name}</span>
+          </span>
+        </button>
+      )}
 
       <button className="sidebar__new-chat" onClick={onNewChat}>
         <span className="icon">
@@ -81,19 +103,26 @@ export default function Sidebar({
         New Chat
       </button>
 
-      <label className="sidebar__search">
-        <IconSearch />
-        <input
-          type="text"
-          placeholder="Search conversations…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck="false"
-        />
-      </label>
+      <div className="sidebar__search-row">
+        <label className="sidebar__search">
+          <IconSearch />
+          <input
+            type="text"
+            placeholder="Search conversations…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+          />
+        </label>
+        {onOpenPalette && (
+          <button type="button" className="sidebar__palette-hint" onClick={onOpenPalette} title="Command palette">
+            <kbd>{typeof navigator !== "undefined" && /Mac/i.test(navigator.platform || "") ? "⌘K" : "Ctrl K"}</kbd>
+          </button>
+        )}
+      </div>
 
       <nav className="sidebar__list">
         {filtered.length === 0 && (

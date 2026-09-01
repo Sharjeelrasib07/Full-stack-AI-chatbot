@@ -227,6 +227,68 @@ export function IconSettings(props) {
   );
 }
 
+export function IconBriefcase(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="7" width="14" height="9.5" rx="2" />
+      <path d="M7.5 7V5.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V7" />
+      <path d="M3 11.5h14" />
+    </svg>
+  );
+}
+
+export function IconCode(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M7 6 3 10l4 4" />
+      <path d="M13 6l4 4-4 4" />
+    </svg>
+  );
+}
+
+export function IconFeather(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 16.5 13.5 7a2 2 0 1 0-3-3L1.5 13.5 1 17l3-.5Z" />
+      <path d="M10 5 15 10" />
+    </svg>
+  );
+}
+
+export function IconGraduation(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M10 3 2 7l8 4 8-4-8-4Z" />
+      <path d="M5.5 9v4c0 1.4 2 2.5 4.5 2.5s4.5-1.1 4.5-2.5V9" />
+      <path d="M17 7.5v4" />
+    </svg>
+  );
+}
+
+export function IconCalculator(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="4" y="2.5" width="12" height="15" rx="2" />
+      <rect x="6" y="4.5" width="8" height="3" rx="0.8" />
+      <circle cx="6.7" cy="11" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="11" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="13.3" cy="11" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="6.7" cy="14.2" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="14.2" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="13.3" cy="14.2" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function IconSwap(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 7h10.5M14.5 7 11.5 4M14.5 7 11.5 10" />
+      <path d="M16 13H5.5M5.5 13 8.5 10M5.5 13 8.5 16" />
+    </svg>
+  );
+}
+
 export function IconSparkWave(props) {
   // Used for the empty-state illustration.
   return (

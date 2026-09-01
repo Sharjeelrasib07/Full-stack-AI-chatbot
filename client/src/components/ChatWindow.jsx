@@ -13,6 +13,7 @@ import {
   IconSend,
   IconDownload,
 } from "./Icons";
+import PersonaIcon from "./PersonaIcon";
 
 const CAN_RECORD_AUDIO =
   typeof navigator !== "undefined" &&
@@ -81,6 +82,7 @@ export default function ChatWindow({
   isSending,
   onToggleSidebar,
   apiBaseUrl,
+  activePersona,
 }) {
   const chatEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -270,7 +272,14 @@ export default function ChatWindow({
         </button>
         <div className="chat-window__header-text">
           <h1>{conversation?.title || "AI Chatbot"}</h1>
-          <p>Ask me anything</p>
+          <p>
+            {activePersona && activePersona.id !== "general" && (
+              <span className="chat-window__persona-dot" style={{ "--persona-color": activePersona.color }}>
+                <PersonaIcon icon={activePersona.icon} />
+              </span>
+            )}
+            {activePersona ? activePersona.tagline : "Ask me anything"}
+          </p>
         </div>
         {messages.length > 0 && (
           <button
@@ -325,6 +334,7 @@ export default function ChatWindow({
                 attachment={m.attachment}
                 timestamp={m.timestamp}
                 reaction={m.reaction}
+                toolCalls={m.toolCalls}
                 isLastAssistant={m.id === lastAssistantId}
                 isSending={isSending}
                 onRegenerate={onRegenerate}

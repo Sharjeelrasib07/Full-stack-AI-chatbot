@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
 import SettingsPanel from "./components/SettingsPanel";
+import PersonaGallery from "./components/PersonaGallery";
+import CommandPalette from "./components/CommandPalette";
 import {
   loadConversations,
   saveConversations,
@@ -16,6 +18,8 @@ import {
   deriveTitle,
   newId,
 } from "./lib/storage";
+import { findPersona } from "./lib/personas";
+import { extractToolCalls } from "./lib/toolCalls";
 import "./App.css";
 
 // The backend Express server's address. Reads from VITE_API_BASE_URL so
@@ -41,12 +45,15 @@ export default function App() {
   const [settings, setSettings] = useState(() => loadSettings());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPersonaGalleryOpen, setIsPersonaGalleryOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isWaitingForFirstToken, setIsWaitingForFirstToken] = useState(false);
   const [error, setError] = useState(null);
   const abortControllerRef = useRef(null);
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? conversations[0];
+  const activePersona = useMemo(() => findPersona(settings.personaId), [settings.personaId]);
 
   // Persist to localStorage whenever the relevant piece of state changes.
   useEffect(() => saveConversations(conversations), [conversations]);
@@ -56,6 +63,20 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
   useEffect(() => saveSettings(settings), [settings]);
+
+  // Ctrl/Cmd+K opens the command palette from anywhere in the app — a
+  // single global listener rather than one per input, so it works even
+  // when focus is on the message box, a sidebar item, or nothing at all.
+  useEffect(() => {
+    function handleGlobalKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsPaletteOpen((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
   function handleNewChat() {
     const conv = makeConversation();
@@ -96,6 +117,15 @@ export default function App() {
 
   function handleToggleTheme() {
     setTheme((t) => (t === "dark" ? "light" : "dark"));
+  }
+
+  // Picking a persona just fast-fills settings.systemPrompt with that
+  // persona's tuned prompt (still editable afterward from Settings) and
+  // remembers which one for the header badge — see lib/personas.js.
+  function handleSelectPersona(personaId) {
+    const persona = findPersona(personaId);
+    setSettings((s) => ({ ...s, personaId, systemPrompt: persona.systemPrompt }));
+    setIsPersonaGalleryOpen(false);
   }
 
   function handleReaction(messageId, reaction) {
@@ -154,7 +184,7 @@ export default function App() {
                 ...c,
                 messages: [
                   ...c.messages,
-                  { id: assistantId, role: "assistant", content: "", timestamp: Date.now() },
+                  { id: assistantId, role: "assistant", content: "", toolCalls: [], timestamp: Date.now() },
                 ],
               }
             : c
@@ -164,6 +194,8 @@ export default function App() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assembled = "";
+      let visibleContent = "";
+      let lastToolCalls = [];
       let firstTokenArrived = false;
 
       while (true) {
@@ -178,14 +210,21 @@ export default function App() {
         }
 
         assembled += chunkText;
-        const snapshot = assembled;
+        // When a tool (calculator, unit converter, …) runs mid-reply, the
+        // server interleaves a small marker into this same plain-text
+        // stream — see lib/toolCalls.js. Re-splitting the FULL text on
+        // every chunk (not just appending the raw chunk) keeps the visible
+        // bubble clean even if a marker straddles two network chunks.
+        const { content, toolCalls } = extractToolCalls(assembled);
+        visibleContent = content;
+        lastToolCalls = toolCalls;
         setConversations((prev) =>
           prev.map((c) =>
             c.id === convId
               ? {
                   ...c,
                   messages: c.messages.map((m) =>
-                    m.id === assistantId ? { ...m, content: snapshot } : m
+                    m.id === assistantId ? { ...m, content, toolCalls } : m
                   ),
                 }
               : c
@@ -193,7 +232,7 @@ export default function App() {
         );
       }
 
-      if (!assembled) {
+      if (!visibleContent.trim() && lastToolCalls.length === 0) {
         setError("The AI didn't return a reply. Please try again.");
       }
     } catch (err) {
@@ -204,7 +243,12 @@ export default function App() {
         setConversations((prev) =>
           prev.map((c) =>
             c.id === convId
-              ? { ...c, messages: c.messages.filter((m) => m.id !== assistantId || m.content) }
+              ? {
+                  ...c,
+                  messages: c.messages.filter(
+                    (m) => m.id !== assistantId || m.content || (m.toolCalls && m.toolCalls.length > 0)
+                  ),
+                }
               : c
           )
         );
@@ -361,6 +405,9 @@ export default function App() {
         onToggleTheme={handleToggleTheme}
         isOpen={isSidebarOpen}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        activePersona={activePersona}
+        onOpenPersonas={() => setIsPersonaGalleryOpen(true)}
+        onOpenPalette={() => setIsPaletteOpen(true)}
       />
       <ChatWindow
         conversation={activeConversation}
@@ -374,6 +421,7 @@ export default function App() {
         isSending={isSending}
         onToggleSidebar={() => setIsSidebarOpen((v) => !v)}
         apiBaseUrl={API_BASE_URL}
+        activePersona={activePersona}
       />
       {isSettingsOpen && (
         <SettingsPanel
@@ -384,6 +432,25 @@ export default function App() {
             setIsSettingsOpen(false);
           }}
           onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
+      {isPersonaGalleryOpen && (
+        <PersonaGallery
+          activePersonaId={settings.personaId}
+          onSelect={handleSelectPersona}
+          onClose={() => setIsPersonaGalleryOpen(false)}
+        />
+      )}
+      {isPaletteOpen && (
+        <CommandPalette
+          conversations={conversations}
+          theme={theme}
+          onNewChat={handleNewChat}
+          onSelectConversation={handleSelect}
+          onSelectPersona={handleSelectPersona}
+          onToggleTheme={handleToggleTheme}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onClose={() => setIsPaletteOpen(false)}
         />
       )}
     </div>

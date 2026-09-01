@@ -14,7 +14,12 @@ import {
   IconThumbDown,
   IconSpeaker,
   IconSpeakerOff,
+  IconCalculator,
+  IconSwap,
 } from "./Icons";
+import { describeToolCall } from "../lib/toolCalls";
+
+const TOOL_CHIP_ICONS = { calculator: IconCalculator, swap: IconSwap };
 
 const CAN_SPEAK = typeof window !== "undefined" && "speechSynthesis" in window;
 
@@ -50,6 +55,7 @@ export default function Message({
   onRegenerate,
   onEditResend,
   onReaction,
+  toolCalls,
 }) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -167,26 +173,43 @@ export default function Message({
             </div>
           </div>
         ) : (
-          <div className={`msg ${isUser ? "msg--user" : "msg--assistant"}`}>
-            {isUser ? (
-              <>
-                {imageUrl && <img className="msg-image" src={imageUrl} alt="Attached" />}
-                {attachment?.type === "document" && (
-                  <div className="msg-file-chip">
-                    <IconFile /> {attachment.name}
-                  </div>
-                )}
-                {attachment?.type === "voice" && (
-                  <span className="msg-voice-badge" title="Sent as a voice note">
-                    <IconMic />
-                  </span>
-                )}
-                {userText}
-              </>
-            ) : (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || " "}</ReactMarkdown>
+          <>
+            {!isUser && toolCalls?.length > 0 && (
+              <div className="tool-chips">
+                {toolCalls.map((call, i) => {
+                  const desc = describeToolCall(call);
+                  if (!desc) return null;
+                  const ChipIcon = TOOL_CHIP_ICONS[desc.icon] || IconCalculator;
+                  return (
+                    <span key={i} className={`tool-chip ${desc.failed ? "tool-chip--failed" : ""}`}>
+                      <ChipIcon />
+                      {desc.text}
+                    </span>
+                  );
+                })}
+              </div>
             )}
-          </div>
+            <div className={`msg ${isUser ? "msg--user" : "msg--assistant"}`}>
+              {isUser ? (
+                <>
+                  {imageUrl && <img className="msg-image" src={imageUrl} alt="Attached" />}
+                  {attachment?.type === "document" && (
+                    <div className="msg-file-chip">
+                      <IconFile /> {attachment.name}
+                    </div>
+                  )}
+                  {attachment?.type === "voice" && (
+                    <span className="msg-voice-badge" title="Sent as a voice note">
+                      <IconMic />
+                    </span>
+                  )}
+                  {userText}
+                </>
+              ) : (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || " "}</ReactMarkdown>
+              )}
+            </div>
+          </>
         )}
 
         {!isEditing && (

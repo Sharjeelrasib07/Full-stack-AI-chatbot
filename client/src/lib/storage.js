@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS = {
   model: "gpt-4o-mini",
   systemPrompt: "", // empty = use the server's built-in default persona
   knowledgeBase: [], // [{ id, name, text }]
+  personaId: "general", // see lib/personas.js — purely cosmetic (which badge/tagline to show)
 };
 
 // Joins the saved knowledge-base documents into the single block of text
