@@ -137,9 +137,20 @@ app.post("/api/extract", upload.single("document"), async (req, res) => {
     let text = "";
 
     if (mimetype === "application/pdf" || lowerName.endsWith(".pdf")) {
-      const pdfParse = require("pdf-parse");
-      const parsed = await pdfParse(buffer);
-      text = parsed.text || "";
+      // pdf-parse v2 has a class-based API (not the plain callable
+      // function older versions used) — construct it with the buffer,
+      // read the text, then release its internal resources.
+      const { PDFParse } = require("pdf-parse");
+      const parser = new PDFParse({ data: buffer });
+      try {
+        const parsed = await parser.getText();
+        // pdf-parse inserts "-- N of M --" page-separator lines into the
+        // text; useful for its own page-mapping features, but just noise
+        // once this is folded into a chat message, so strip them out.
+        text = (parsed.text || "").replace(/\n?--\s*\d+\s*of\s*\d+\s*--\n?/g, "\n");
+      } finally {
+        await parser.destroy();
+      }
     } else if (
       mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       lowerName.endsWith(".docx")
