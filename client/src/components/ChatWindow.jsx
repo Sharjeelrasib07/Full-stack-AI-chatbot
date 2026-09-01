@@ -285,7 +285,7 @@ export default function ChatWindow({
       </header>
 
       <main className="chat">
-        {messages.length === 0 && !isWaitingForFirstToken && (
+        {messages.length === 0 && !isWaitingForFirstToken ? (
           <div className="chat__empty">
             <span className="chat__empty-icon">
               <IconSparkWave />
@@ -305,30 +305,40 @@ export default function ChatWindow({
               ))}
             </div>
           </div>
+        ) : (
+          // A short conversation should sit at the bottom of the chat area
+          // (next to the input box) rather than leaving a big empty gap
+          // above it — but that has to come from THIS wrapper's own
+          // margin-top:auto, not from justify-content on the scrolling
+          // .chat above. justify-content:flex-end on a scroll container
+          // is a known trap: once content overflows, some browsers can't
+          // scroll all the way back up to the start of it — exactly the
+          // "can't scroll to the top of a long reply" bug this replaced.
+          <div className="chat__inner">
+            {messages.map((m) => (
+              <Message
+                key={m.id}
+                id={m.id}
+                role={m.role}
+                content={m.content}
+                display={m.display}
+                attachment={m.attachment}
+                timestamp={m.timestamp}
+                reaction={m.reaction}
+                isLastAssistant={m.id === lastAssistantId}
+                isSending={isSending}
+                onRegenerate={onRegenerate}
+                onEditResend={onEditResend}
+                onReaction={onReaction}
+              />
+            ))}
+
+            {isWaitingForFirstToken && <TypingIndicator />}
+            {error && <div className="msg msg--error">{error}</div>}
+
+            <div ref={chatEndRef} />
+          </div>
         )}
-
-        {messages.map((m) => (
-          <Message
-            key={m.id}
-            id={m.id}
-            role={m.role}
-            content={m.content}
-            display={m.display}
-            attachment={m.attachment}
-            timestamp={m.timestamp}
-            reaction={m.reaction}
-            isLastAssistant={m.id === lastAssistantId}
-            isSending={isSending}
-            onRegenerate={onRegenerate}
-            onEditResend={onEditResend}
-            onReaction={onReaction}
-          />
-        ))}
-
-        {isWaitingForFirstToken && <TypingIndicator />}
-        {error && <div className="msg msg--error">{error}</div>}
-
-        <div ref={chatEndRef} />
       </main>
 
       {attachError && <div className="attach-error">{attachError}</div>}

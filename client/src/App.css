@@ -507,12 +507,22 @@ body {
   padding: 22px;
   display: flex;
   flex-direction: column;
+  /* No justify-content here on purpose — see .chat__inner's margin-top:
+     auto below for how bottom-anchoring is done instead. */
+}
+
+.chat__inner {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   /* Anchors a short conversation to the bottom (next to the input box)
-     instead of leaving a large empty gap below it — matches how
-     WhatsApp/iMessage/ChatGPT behave. Once there are enough messages to
-     fill the space, this has no visible effect and it scrolls normally. */
-  justify-content: flex-end;
+     instead of leaving a large empty gap above it — matches how
+     WhatsApp/iMessage/ChatGPT behave. Unlike justify-content: flex-end on
+     the scrolling .chat itself, this margin only ever consumes genuinely
+     spare space: once the message list is taller than the visible area,
+     it collapses to 0 and normal top-to-bottom scrolling takes over, so
+     scrolling up to the start of a long reply always works. */
+  margin-top: auto;
 }
 
 .chat__empty {
