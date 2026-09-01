@@ -82,18 +82,63 @@ export default function App() {
     setTheme((t) => (t === "dark" ? "light" : "dark"));
   }
 
-  async function handleSend(text) {
+  // `payload` covers every way a message can arrive: plain typed text,
+  // text with an image attached, text with a document attached, or a
+  // transcribed voice note. It normalizes all of those into:
+  //   - content: what actually gets sent to the OpenAI API (a plain string,
+  //     or — for images — the multimodal array format the vision model
+  //     expects)
+  //   - display: what the user's own bubble shows (their typed caption,
+  //     which may be empty for an image sent with no text)
+  //   - attachment: small metadata (type + filename) so the bubble can show
+  //     a thumbnail, a file chip, or a mic badge
+  async function handleSend(payload) {
     if (!activeConversation) return;
     const convId = activeConversation.id;
-    const userMsg = { id: newId(), role: "user", content: text, timestamp: Date.now() };
+
+    const text = (payload.text || "").trim();
+    let content;
+    let display;
+    let attachment;
+
+    if (payload.image) {
+      const parts = [];
+      if (text) parts.push({ type: "text", text });
+      parts.push({ type: "image_url", image_url: { url: payload.image.dataUrl } });
+      content = parts;
+      display = text;
+      attachment = { type: "image", name: payload.image.name };
+    } else if (payload.document) {
+      const docBlock = `[Attached document: ${payload.document.name}]\n${payload.document.text}`;
+      content = text ? `${text}\n\n${docBlock}` : docBlock;
+      display = text;
+      attachment = { type: "document", name: payload.document.name };
+    } else {
+      content = text;
+      display = text;
+      if (payload.isVoice) attachment = { type: "voice" };
+    }
+
+    if (!content || (typeof content === "string" && !content.trim())) return;
+
+    const userMsg = {
+      id: newId(),
+      role: "user",
+      content,
+      display,
+      attachment,
+      timestamp: Date.now(),
+    };
 
     setConversations((prev) =>
       prev.map((c) => {
         if (c.id !== convId) return c;
         const isFirstMessage = c.messages.length === 0;
+        const titleSource =
+          display || (attachment?.type === "document" ? attachment.name : attachment?.type === "image" ? "Image" : "New Chat");
         return {
           ...c,
-          title: isFirstMessage ? deriveTitle(text) : c.title,
+          title: isFirstMessage ? deriveTitle(titleSource) : c.title,
           messages: [...c.messages, userMsg],
         };
       })
@@ -208,6 +253,7 @@ export default function App() {
         onSend={handleSend}
         isSending={isSending}
         onToggleSidebar={() => setIsSidebarOpen((v) => !v)}
+        apiBaseUrl={API_BASE_URL}
       />
     </div>
   );

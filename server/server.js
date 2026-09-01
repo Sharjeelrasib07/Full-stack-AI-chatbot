@@ -8,10 +8,19 @@ require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const multer = require("multer");
 const OpenAI = require("openai");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+// Attachments (voice notes, documents) arrive as multipart/form-data and are
+// handled in memory — nothing is written to disk, since Render's free tier
+// has an ephemeral filesystem anyway.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB — plenty for a voice note or a resume
+});
 
 if (!process.env.OPENAI_API_KEY) {
   console.warn(
@@ -83,8 +92,101 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+// Voice notes: the browser records audio, sends it here, and gets back the
+// transcribed text. The frontend then sends that text through /api/chat
+// exactly like a typed message — this endpoint doesn't talk to the chat
+// model at all, only OpenAI's speech-to-text (Whisper) model.
+app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
+  if (!openai) {
+    return res.status(500).json({
+      error: "Server has no OPENAI_API_KEY configured. Add one to server/.env and restart the server.",
+    });
+  }
+  if (!req.file) {
+    return res.status(400).json({ error: "No audio file was received." });
+  }
+
+  try {
+    const file = await OpenAI.toFile(req.file.buffer, req.file.originalname || "voice-note.webm");
+    const transcription = await openai.audio.transcriptions.create({
+      file,
+      model: "whisper-1",
+    });
+    res.json({ text: transcription.text || "" });
+  } catch (err) {
+    console.error("Error transcribing audio:", err.message);
+    res.status(500).json({ error: "Could not transcribe that voice note. Please try again." });
+  }
+});
+
+// Document attachments (PDF / DOCX / TXT): extracts plain text server-side
+// so the frontend can fold it into the chat message as context. Images are
+// handled entirely on the frontend instead (sent inline as base64 to the
+// vision-capable chat model), so they never hit this endpoint.
+const MAX_DOCUMENT_CHARS = 8000;
+
+app.post("/api/extract", upload.single("document"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No document was received." });
+  }
+
+  const { originalname, mimetype, buffer } = req.file;
+  const lowerName = (originalname || "").toLowerCase();
+
+  try {
+    let text = "";
+
+    if (mimetype === "application/pdf" || lowerName.endsWith(".pdf")) {
+      const pdfParse = require("pdf-parse");
+      const parsed = await pdfParse(buffer);
+      text = parsed.text || "";
+    } else if (
+      mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      lowerName.endsWith(".docx")
+    ) {
+      const mammoth = require("mammoth");
+      const result = await mammoth.extractRawText({ buffer });
+      text = result.value || "";
+    } else if (mimetype === "text/plain" || lowerName.endsWith(".txt")) {
+      text = buffer.toString("utf-8");
+    } else {
+      return res.status(400).json({
+        error: "Unsupported file type. Please attach a PDF, Word (.docx), or plain text (.txt) file.",
+      });
+    }
+
+    text = text.trim();
+    if (!text) {
+      return res.status(400).json({ error: "Couldn't find any readable text in that document." });
+    }
+
+    const truncated = text.length > MAX_DOCUMENT_CHARS;
+    if (truncated) {
+      text = text.slice(0, MAX_DOCUMENT_CHARS);
+    }
+
+    res.json({ text, filename: originalname, truncated });
+  } catch (err) {
+    console.error("Error extracting document text:", err.message);
+    res.status(500).json({ error: "Could not read that document. Please try a different file." });
+  }
+});
+
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+// Turns Multer's upload errors (file too large, wrong field, etc.) into the
+// same kind of JSON error response the frontend already knows how to show,
+// instead of Express's default HTML error page.
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ error: "That file is too large (20MB max)." });
+    }
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  }
+  next(err);
 });
 
 app.listen(PORT, () => {
