@@ -2,7 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import Message from "./Message";
 import TypingIndicator from "./TypingIndicator";
 import { resizeImageToDataUrl, isImageFile, ACCEPTED_DOCUMENT_TYPES, formatFileSize } from "../lib/attachments";
-import { IconMenu, IconSparkWave, IconFile, IconClose, IconPaperclip, IconMic, IconMicStop, IconSend } from "./Icons";
+import {
+  IconMenu,
+  IconSparkWave,
+  IconFile,
+  IconClose,
+  IconPaperclip,
+  IconMic,
+  IconMicStop,
+  IconSend,
+  IconDownload,
+} from "./Icons";
 
 const CAN_RECORD_AUDIO =
   typeof navigator !== "undefined" &&
@@ -16,11 +26,57 @@ function recordingFilename(mimeType) {
   return "voice-note.webm";
 }
 
+// A handful of one-tap conversation starters shown only on a brand-new,
+// empty conversation — purely a convenience so a blank screen doesn't
+// leave the user wondering what to type.
+const STARTER_PROMPTS = [
+  "Explain a tricky concept simply",
+  "Help me write a professional email",
+  "Give me feedback on an idea",
+  "Debug a piece of code with me",
+];
+
+function messageTextForExport(m) {
+  if (typeof m.content === "string") return m.content;
+  if (Array.isArray(m.content)) {
+    return m.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join(" ") || "[image]";
+  }
+  return "";
+}
+
+// Builds a plain-text transcript and triggers a browser download — no
+// backend involvement needed, this is purely client-side.
+function exportConversation(conversation) {
+  const lines = [`${conversation.title || "Conversation"}`, ""];
+  conversation.messages.forEach((m) => {
+    const who = m.role === "user" ? "You" : "Assistant";
+    const when = m.timestamp ? new Date(m.timestamp).toLocaleString() : "";
+    lines.push(`${who}${when ? ` (${when})` : ""}:`);
+    lines.push(messageTextForExport(m).trim() || "(empty)");
+    lines.push("");
+  });
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${(conversation.title || "conversation").replace(/[^\w\- ]+/g, "").trim() || "conversation"}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function ChatWindow({
   conversation,
   isWaitingForFirstToken,
   error,
   onSend,
+  onRegenerate,
+  onEditResend,
+  onReaction,
   isSending,
   onToggleSidebar,
   apiBaseUrl,
@@ -197,36 +253,74 @@ export default function ChatWindow({
 
   const sendDisabled = isSending || isExtracting;
 
+  const messages = conversation?.messages || [];
+  const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
+
+  function handleStarterClick(prompt) {
+    if (sendDisabled) return;
+    onSend({ text: prompt });
+  }
+
   return (
     <section className="chat-window">
       <header className="chat-window__header">
         <button className="sidebar-toggle" onClick={onToggleSidebar} title="Toggle conversations">
           <IconMenu />
         </button>
-        <div>
+        <div className="chat-window__header-text">
           <h1>{conversation?.title || "AI Chatbot"}</h1>
           <p>Ask me anything</p>
         </div>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            className="chat-window__export"
+            onClick={() => exportConversation(conversation)}
+            title="Download this conversation as a text file"
+          >
+            <IconDownload />
+          </button>
+        )}
       </header>
 
       <main className="chat">
-        {(!conversation || conversation.messages.length === 0) && !isWaitingForFirstToken && (
+        {messages.length === 0 && !isWaitingForFirstToken && (
           <div className="chat__empty">
             <span className="chat__empty-icon">
               <IconSparkWave />
             </span>
             <p>Say hello to start the conversation.</p>
+            <div className="chat__starters">
+              {STARTER_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="chat__starter"
+                  onClick={() => handleStarterClick(prompt)}
+                  disabled={sendDisabled}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {conversation?.messages.map((m) => (
+        {messages.map((m) => (
           <Message
             key={m.id}
+            id={m.id}
             role={m.role}
             content={m.content}
             display={m.display}
             attachment={m.attachment}
             timestamp={m.timestamp}
+            reaction={m.reaction}
+            isLastAssistant={m.id === lastAssistantId}
+            isSending={isSending}
+            onRegenerate={onRegenerate}
+            onEditResend={onEditResend}
+            onReaction={onReaction}
           />
         ))}
 

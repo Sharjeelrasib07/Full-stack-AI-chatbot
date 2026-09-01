@@ -6,6 +6,17 @@
 const CONVERSATIONS_KEY = "ai-chatbot:conversations";
 const ACTIVE_ID_KEY = "ai-chatbot:activeId";
 const THEME_KEY = "ai-chatbot:theme";
+const SETTINGS_KEY = "ai-chatbot:settings";
+
+export const AVAILABLE_MODELS = [
+  { id: "gpt-4o-mini", label: "gpt-4o-mini", hint: "Fast" },
+  { id: "gpt-4o", label: "gpt-4o", hint: "Smarter" },
+];
+
+const DEFAULT_SETTINGS = {
+  model: "gpt-4o-mini",
+  systemPrompt: "", // empty = use the server's built-in default persona
+};
 
 function safeGet(key) {
   try {
@@ -59,6 +70,21 @@ export function loadTheme() {
 
 export function saveTheme(theme) {
   safeSet(THEME_KEY, theme);
+}
+
+export function loadSettings() {
+  const raw = safeGet(SETTINGS_KEY);
+  if (!raw) return { ...DEFAULT_SETTINGS };
+  try {
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_SETTINGS, ...parsed };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+export function saveSettings(settings) {
+  safeSet(SETTINGS_KEY, JSON.stringify(settings));
 }
 
 export function newId() {

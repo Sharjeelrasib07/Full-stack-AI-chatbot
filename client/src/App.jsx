@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
+import SettingsPanel from "./components/SettingsPanel";
 import {
   loadConversations,
   saveConversations,
@@ -8,6 +9,8 @@ import {
   saveActiveId,
   loadTheme,
   saveTheme,
+  loadSettings,
+  saveSettings,
   makeConversation,
   deriveTitle,
   newId,
@@ -34,7 +37,9 @@ export default function App() {
   });
 
   const [theme, setTheme] = useState(() => loadTheme());
+  const [settings, setSettings] = useState(() => loadSettings());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isWaitingForFirstToken, setIsWaitingForFirstToken] = useState(false);
   const [error, setError] = useState(null);
@@ -48,6 +53,7 @@ export default function App() {
     saveTheme(theme);
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+  useEffect(() => saveSettings(settings), [settings]);
 
   function handleNewChat() {
     const conv = makeConversation();
@@ -78,82 +84,42 @@ export default function App() {
     });
   }
 
+  function handleRename(id, newTitle) {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: trimmed.slice(0, 60), titleLocked: true } : c))
+    );
+  }
+
   function handleToggleTheme() {
     setTheme((t) => (t === "dark" ? "light" : "dark"));
   }
 
-  // `payload` covers every way a message can arrive: plain typed text,
-  // text with an image attached, text with a document attached, or a
-  // transcribed voice note. It normalizes all of those into:
-  //   - content: what actually gets sent to the OpenAI API (a plain string,
-  //     or — for images — the multimodal array format the vision model
-  //     expects)
-  //   - display: what the user's own bubble shows (their typed caption,
-  //     which may be empty for an image sent with no text)
-  //   - attachment: small metadata (type + filename) so the bubble can show
-  //     a thumbnail, a file chip, or a mic badge
-  async function handleSend(payload) {
+  function handleReaction(messageId, reaction) {
     if (!activeConversation) return;
     const convId = activeConversation.id;
-
-    const text = (payload.text || "").trim();
-    let content;
-    let display;
-    let attachment;
-
-    if (payload.image) {
-      const parts = [];
-      if (text) parts.push({ type: "text", text });
-      parts.push({ type: "image_url", image_url: { url: payload.image.dataUrl } });
-      content = parts;
-      display = text;
-      attachment = { type: "image", name: payload.image.name };
-    } else if (payload.document) {
-      const docBlock = `[Attached document: ${payload.document.name}]\n${payload.document.text}`;
-      content = text ? `${text}\n\n${docBlock}` : docBlock;
-      display = text;
-      attachment = { type: "document", name: payload.document.name };
-    } else {
-      content = text;
-      display = text;
-      if (payload.isVoice) attachment = { type: "voice" };
-    }
-
-    if (!content || (typeof content === "string" && !content.trim())) return;
-
-    const userMsg = {
-      id: newId(),
-      role: "user",
-      content,
-      display,
-      attachment,
-      timestamp: Date.now(),
-    };
-
     setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id !== convId) return c;
-        const isFirstMessage = c.messages.length === 0;
-        const titleSource =
-          display || (attachment?.type === "document" ? attachment.name : attachment?.type === "image" ? "Image" : "New Chat");
-        return {
-          ...c,
-          title: isFirstMessage ? deriveTitle(titleSource) : c.title,
-          messages: [...c.messages, userMsg],
-        };
-      })
+      prev.map((c) =>
+        c.id !== convId
+          ? c
+          : {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === messageId ? { ...m, reaction: m.reaction === reaction ? null : reaction } : m
+              ),
+            }
+      )
     );
+  }
 
+  // Shared by a fresh send, a regenerate, and an edit-and-resend — all three
+  // end the same way: POST the given message history and stream the reply
+  // into a new assistant bubble on the given conversation.
+  async function streamAssistantReply(convId, payloadMessages) {
     setError(null);
     setIsSending(true);
     setIsWaitingForFirstToken(true);
-
-    // Built explicitly (not read back from state) since the setConversations
-    // call above is async — this always reflects exactly what we just sent.
-    const payloadMessages = [...activeConversation.messages, userMsg].map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
 
     const assistantId = newId();
 
@@ -161,7 +127,11 @@ export default function App() {
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: payloadMessages }),
+        body: JSON.stringify({
+          messages: payloadMessages,
+          model: settings.model,
+          systemPrompt: settings.systemPrompt || undefined,
+        }),
       });
 
       if (!res.ok) {
@@ -228,6 +198,126 @@ export default function App() {
     }
   }
 
+  // `payload` covers every way a message can arrive: plain typed text,
+  // text with an image attached, text with a document attached, or a
+  // transcribed voice note. It normalizes all of those into:
+  //   - content: what actually gets sent to the OpenAI API (a plain string,
+  //     or — for images — the multimodal array format the vision model
+  //     expects)
+  //   - display: what the user's own bubble shows (their typed caption,
+  //     which may be empty for an image sent with no text)
+  //   - attachment: small metadata (type + filename) so the bubble can show
+  //     a thumbnail, a file chip, or a mic badge
+  async function handleSend(payload) {
+    if (!activeConversation) return;
+    const convId = activeConversation.id;
+
+    const text = (payload.text || "").trim();
+    let content;
+    let display;
+    let attachment;
+
+    if (payload.image) {
+      const parts = [];
+      if (text) parts.push({ type: "text", text });
+      parts.push({ type: "image_url", image_url: { url: payload.image.dataUrl } });
+      content = parts;
+      display = text;
+      attachment = { type: "image", name: payload.image.name };
+    } else if (payload.document) {
+      const docBlock = `[Attached document: ${payload.document.name}]\n${payload.document.text}`;
+      content = text ? `${text}\n\n${docBlock}` : docBlock;
+      display = text;
+      attachment = { type: "document", name: payload.document.name };
+    } else {
+      content = text;
+      display = text;
+      if (payload.isVoice) attachment = { type: "voice" };
+    }
+
+    if (!content || (typeof content === "string" && !content.trim())) return;
+
+    const userMsg = {
+      id: newId(),
+      role: "user",
+      content,
+      display,
+      attachment,
+      timestamp: Date.now(),
+    };
+
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== convId) return c;
+        const isFirstMessage = c.messages.length === 0;
+        const titleSource =
+          display || (attachment?.type === "document" ? attachment.name : attachment?.type === "image" ? "Image" : "New Chat");
+        return {
+          ...c,
+          title: isFirstMessage && !c.titleLocked ? deriveTitle(titleSource) : c.title,
+          messages: [...c.messages, userMsg],
+        };
+      })
+    );
+
+    // Built explicitly (not read back from state) since the setConversations
+    // call above is async — this always reflects exactly what we just sent.
+    const payloadMessages = [...activeConversation.messages, userMsg].map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    await streamAssistantReply(convId, payloadMessages);
+  }
+
+  // Drops the given assistant reply (and re-derives from everything before
+  // it) and asks for a fresh one — only ever called on the last message in
+  // a conversation, so nothing after it needs to move.
+  async function handleRegenerate(messageId) {
+    if (!activeConversation || isSending) return;
+    const convId = activeConversation.id;
+    const idx = activeConversation.messages.findIndex((m) => m.id === messageId);
+    if (idx === -1) return;
+
+    const truncated = activeConversation.messages.slice(0, idx);
+    setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, messages: truncated } : c)));
+
+    const payloadMessages = truncated.map((m) => ({ role: m.role, content: m.content }));
+    await streamAssistantReply(convId, payloadMessages);
+  }
+
+  // Replaces a previously-sent user message with new text, drops everything
+  // that came after it (its old reply included), and asks for a new reply —
+  // the same "edit and resend" behavior most chat apps offer.
+  async function handleEditResend(messageId, newText) {
+    if (!activeConversation || isSending) return;
+    const trimmed = newText.trim();
+    if (!trimmed) return;
+
+    const convId = activeConversation.id;
+    const idx = activeConversation.messages.findIndex((m) => m.id === messageId);
+    if (idx === -1) return;
+
+    const before = activeConversation.messages.slice(0, idx);
+    const editedMsg = { id: newId(), role: "user", content: trimmed, display: trimmed, timestamp: Date.now() };
+    const updatedMessages = [...before, editedMsg];
+
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== convId) return c;
+        const isFirstMessage = before.length === 0;
+        return {
+          ...c,
+          title: isFirstMessage && !c.titleLocked ? deriveTitle(trimmed) : c.title,
+          messages: updatedMessages,
+        };
+      })
+    );
+
+    const payloadMessages = updatedMessages.map((m) => ({ role: m.role, content: m.content }));
+    await streamAssistantReply(convId, payloadMessages);
+  }
+
   return (
     <div className="app-shell">
       {/* Tap-outside-to-close backdrop for the mobile sidebar. Only ever
@@ -242,19 +332,34 @@ export default function App() {
         onSelect={handleSelect}
         onNewChat={handleNewChat}
         onDelete={handleDelete}
+        onRename={handleRename}
         theme={theme}
         onToggleTheme={handleToggleTheme}
         isOpen={isSidebarOpen}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
       <ChatWindow
         conversation={activeConversation}
         isWaitingForFirstToken={isWaitingForFirstToken}
         error={error}
         onSend={handleSend}
+        onRegenerate={handleRegenerate}
+        onEditResend={handleEditResend}
+        onReaction={handleReaction}
         isSending={isSending}
         onToggleSidebar={() => setIsSidebarOpen((v) => !v)}
         apiBaseUrl={API_BASE_URL}
       />
+      {isSettingsOpen && (
+        <SettingsPanel
+          settings={settings}
+          onSave={(next) => {
+            setSettings(next);
+            setIsSettingsOpen(false);
+          }}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 }

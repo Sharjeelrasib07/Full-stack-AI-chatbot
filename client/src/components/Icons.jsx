@@ -148,6 +148,85 @@ export function IconCheck(props) {
   );
 }
 
+export function IconEdit(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12.5 3.5 16.5 7.5 7 17H3v-4Z" />
+      <path d="M11 5l4 4" />
+    </svg>
+  );
+}
+
+export function IconRefresh(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 10a6 6 0 0 1 10.2-4.3M16 10a6 6 0 0 1-10.2 4.3" />
+      <path d="M14.5 2.8V6h-3.2M5.5 17.2V14h3.2" />
+    </svg>
+  );
+}
+
+export function IconThumbUp(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M7 17H4.5a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1H7m0 8.5V8.5m0 8.5h6.6a1.5 1.5 0 0 0 1.47-1.2l1.06-5A1.5 1.5 0 0 0 15.16 9H11.5l.6-3.3a1.3 1.3 0 0 0-2.3-1L7 8.5" />
+    </svg>
+  );
+}
+
+export function IconThumbDown(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M13 3h2.5a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H13m0-8.5V11.5m0-8.5H6.4a1.5 1.5 0 0 0-1.47 1.2l-1.06 5A1.5 1.5 0 0 0 5.34 11H9l-.6 3.3a1.3 1.3 0 0 0 2.3 1L13 11.5" />
+    </svg>
+  );
+}
+
+export function IconSpeaker(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3.5 7.5h2.8L10 4.2v11.6l-3.7-3.3H3.5a.6.6 0 0 1-.6-.6V8.1a.6.6 0 0 1 .6-.6Z" />
+      <path d="M12.7 7a4 4 0 0 1 0 6M14.9 4.8a7.2 7.2 0 0 1 0 10.4" />
+    </svg>
+  );
+}
+
+export function IconSpeakerOff(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3.5 7.5h2.8L10 4.2v11.6l-3.7-3.3H3.5a.6.6 0 0 1-.6-.6V8.1a.6.6 0 0 1 .6-.6Z" />
+      <path d="M12.5 8l4 4M16.5 8l-4 4" />
+    </svg>
+  );
+}
+
+export function IconSearch(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="8.75" cy="8.75" r="5.25" />
+      <path d="M16.5 16.5l-3.6-3.6" />
+    </svg>
+  );
+}
+
+export function IconDownload(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M10 3v9.5M6.2 9.2 10 13l3.8-3.8" />
+      <path d="M3.5 15.5v1a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-1" />
+    </svg>
+  );
+}
+
+export function IconSettings(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="10" cy="10" r="2.6" />
+      <path d="M10 2.8v2M10 15.2v2M4.6 5.4l1.4 1.4M14 13.2l1.4 1.4M2.8 10h2M15.2 10h2M4.6 14.6l1.4-1.4M14 6.8l1.4-1.4" />
+    </svg>
+  );
+}
+
 export function IconSparkWave(props) {
   // Used for the empty-state illustration.
   return (
