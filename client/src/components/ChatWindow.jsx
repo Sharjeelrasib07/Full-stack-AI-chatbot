@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Message from "./Message";
 import TypingIndicator from "./TypingIndicator";
 import { resizeImageToDataUrl, isImageFile, ACCEPTED_DOCUMENT_TYPES, formatFileSize } from "../lib/attachments";
+import { IconMenu, IconSparkWave, IconFile, IconClose, IconPaperclip, IconMic, IconMicStop, IconSend } from "./Icons";
 
 const CAN_RECORD_AUDIO =
   typeof navigator !== "undefined" &&
@@ -200,7 +201,7 @@ export default function ChatWindow({
     <section className="chat-window">
       <header className="chat-window__header">
         <button className="sidebar-toggle" onClick={onToggleSidebar} title="Toggle conversations">
-          ☰
+          <IconMenu />
         </button>
         <div>
           <h1>{conversation?.title || "AI Chatbot"}</h1>
@@ -211,7 +212,10 @@ export default function ChatWindow({
       <main className="chat">
         {(!conversation || conversation.messages.length === 0) && !isWaitingForFirstToken && (
           <div className="chat__empty">
-            <p>👋 Say hello to start the conversation.</p>
+            <span className="chat__empty-icon">
+              <IconSparkWave />
+            </span>
+            <p>Say hello to start the conversation.</p>
           </div>
         )}
 
@@ -239,7 +243,9 @@ export default function ChatWindow({
           {pendingAttachment.type === "image" ? (
             <img className="attach-preview__thumb" src={pendingAttachment.dataUrl} alt="Attached preview" />
           ) : (
-            <span className="attach-preview__icon">📄</span>
+            <span className="attach-preview__icon">
+              <IconFile />
+            </span>
           )}
           <div className="attach-preview__info">
             <span className="attach-preview__name">{pendingAttachment.name}</span>
@@ -256,7 +262,7 @@ export default function ChatWindow({
             onClick={() => setPendingAttachment(null)}
             title="Remove attachment"
           >
-            ✕
+            <IconClose />
           </button>
         </div>
       )}
@@ -305,7 +311,7 @@ export default function ChatWindow({
           disabled={sendDisabled || isRecording}
           title="Attach an image or document"
         >
-          📎
+          <IconPaperclip />
         </button>
 
         <textarea
@@ -325,11 +331,12 @@ export default function ChatWindow({
             disabled={sendDisabled || isTranscribing}
             title={isRecording ? "Stop recording" : "Record a voice note"}
           >
-            {isRecording ? "⏹" : "🎤"}
+            {isRecording ? <IconMicStop /> : <IconMic />}
           </button>
         )}
 
         <button type="submit" disabled={sendDisabled}>
+          <IconSend />
           {isSending ? "Sending…" : "Send"}
         </button>
       </form>

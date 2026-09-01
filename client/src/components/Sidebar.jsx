@@ -1,3 +1,5 @@
+import { IconBot, IconPlus, IconTrash, IconSun, IconMoon } from "./Icons";
+
 export default function Sidebar({
   conversations,
   activeId,
@@ -10,8 +12,18 @@ export default function Sidebar({
 }) {
   return (
     <aside className={`sidebar ${isOpen ? "sidebar--open" : ""}`}>
+      <div className="sidebar__brand">
+        <span className="sidebar__brand-mark">
+          <IconBot />
+        </span>
+        <span className="sidebar__brand-name">AI Chatbot</span>
+      </div>
+
       <button className="sidebar__new-chat" onClick={onNewChat}>
-        <span className="icon">+</span> New Chat
+        <span className="icon">
+          <IconPlus />
+        </span>
+        New Chat
       </button>
 
       <nav className="sidebar__list">
@@ -33,14 +45,15 @@ export default function Sidebar({
                 onDelete(c.id);
               }}
             >
-              ✕
+              <IconTrash />
             </button>
           </div>
         ))}
       </nav>
 
       <button className="sidebar__theme-toggle" onClick={onToggleTheme}>
-        {theme === "dark" ? "☀️  Light mode" : "🌙  Dark mode"}
+        {theme === "dark" ? <IconSun /> : <IconMoon />}
+        {theme === "dark" ? "Light mode" : "Dark mode"}
       </button>
     </aside>
   );

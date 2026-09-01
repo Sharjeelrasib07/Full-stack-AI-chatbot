@@ -1,6 +1,7 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { IconBot, IconUser, IconFile, IconMic, IconCopy, IconCheck } from "./Icons";
 
 function formatTime(timestamp) {
   if (!timestamp) return "";
@@ -33,7 +34,11 @@ export default function Message({ role, content, display, attachment, timestamp 
 
   return (
     <div className={`message-row ${isUser ? "message-row--user" : "message-row--assistant"}`}>
-      {!isUser && <div className="avatar avatar--ai">🤖</div>}
+      {!isUser && (
+        <div className="avatar avatar--ai">
+          <IconBot />
+        </div>
+      )}
 
       <div className="message-col">
         <div className={`msg ${isUser ? "msg--user" : "msg--assistant"}`}>
@@ -42,12 +47,12 @@ export default function Message({ role, content, display, attachment, timestamp 
               {imageUrl && <img className="msg-image" src={imageUrl} alt="Attached" />}
               {attachment?.type === "document" && (
                 <div className="msg-file-chip">
-                  <span>📄</span> {attachment.name}
+                  <IconFile /> {attachment.name}
                 </div>
               )}
               {attachment?.type === "voice" && (
                 <span className="msg-voice-badge" title="Sent as a voice note">
-                  🎤
+                  <IconMic />
                 </span>
               )}
               {userText}
@@ -60,13 +65,18 @@ export default function Message({ role, content, display, attachment, timestamp 
           <span className="message-time">{formatTime(timestamp)}</span>
           {!isUser && content && (
             <button className="message-copy" onClick={handleCopy} title="Copy reply">
-              {copied ? "Copied!" : "Copy"}
+              {copied ? <IconCheck /> : <IconCopy />}
+              {copied ? "Copied" : "Copy"}
             </button>
           )}
         </div>
       </div>
 
-      {isUser && <div className="avatar avatar--user">🧑</div>}
+      {isUser && (
+        <div className="avatar avatar--user">
+          <IconUser />
+        </div>
+      )}
     </div>
   );
 }
