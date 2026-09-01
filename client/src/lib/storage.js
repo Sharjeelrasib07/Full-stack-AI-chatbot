@@ -13,10 +13,31 @@ export const AVAILABLE_MODELS = [
   { id: "gpt-4o", label: "gpt-4o", hint: "Smarter" },
 ];
 
+// Knowledge-base documents (e.g. a price list, an FAQ, a past proposal) get
+// attached to EVERY message automatically, unlike the one-off per-message
+// attachments in ChatWindow — this is what makes the assistant feel like
+// it "knows" a specific business rather than being generic. Kept small on
+// purpose: this is a context-stuffing approach (the whole thing is resent
+// with every request), not real retrieval, so it only scales to a handful
+// of short documents.
+export const MAX_KB_DOCS = 5;
+export const MAX_KB_DOC_CHARS = 1500;
+
 const DEFAULT_SETTINGS = {
   model: "gpt-4o-mini",
   systemPrompt: "", // empty = use the server's built-in default persona
+  knowledgeBase: [], // [{ id, name, text }]
 };
+
+// Joins the saved knowledge-base documents into the single block of text
+// sent to the backend as extra system-message context. Returns "" when
+// there's nothing to send, so callers can just check truthiness.
+export function compileKnowledgeBase(knowledgeBase) {
+  if (!Array.isArray(knowledgeBase) || knowledgeBase.length === 0) return "";
+  return knowledgeBase
+    .map((doc) => `--- ${doc.name} ---\n${doc.text}`)
+    .join("\n\n");
+}
 
 function safeGet(key) {
   try {

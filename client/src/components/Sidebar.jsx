@@ -88,6 +88,10 @@ export default function Sidebar({
           placeholder="Search conversations…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
         />
       </label>
 
@@ -113,6 +117,10 @@ export default function Sidebar({
                 onBlur={commitRename}
                 onKeyDown={handleRenameKeyDown}
                 maxLength={60}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
               />
             ) : (
               <span className="sidebar__item-title">{c.title || "New Chat"}</span>

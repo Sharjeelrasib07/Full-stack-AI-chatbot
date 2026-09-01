@@ -155,6 +155,7 @@ export default function Message({
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={handleEditKeyDown}
               rows={Math.min(6, Math.max(2, editValue.split("\n").length))}
+              autoComplete="off"
             />
             <div className="msg-edit__actions">
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => setIsEditing(false)}>

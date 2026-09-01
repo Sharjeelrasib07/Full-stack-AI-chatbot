@@ -884,6 +884,36 @@ body {
   cursor: not-allowed;
 }
 
+/* Replaces the Send button while a reply is streaming in — lets the user
+   interrupt a reply that's taking too long or going the wrong way,
+   matching the "stop generating" behavior most chat apps offer. */
+.chat-form__stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 18px;
+  height: 42px;
+  border: 1px solid var(--error-border);
+  border-radius: 12px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.chat-form__stop:hover {
+  background: var(--error-text);
+  color: var(--surface);
+}
+
+.chat-form__stop:active {
+  transform: scale(0.97);
+}
+
 /* Paperclip (attach) and mic (voice note) buttons — deliberately plainer
    than the Send button so Send stays the one clear call to action. */
 .icon-btn {
@@ -1173,7 +1203,8 @@ body {
     height: 38px;
   }
 
-  .chat-form button[type="submit"] {
+  .chat-form button[type="submit"],
+  .chat-form__stop {
     padding: 0 14px;
   }
 }
@@ -1313,6 +1344,82 @@ body {
   align-self: flex-end;
   font-size: 0.72rem;
   color: var(--text-faint);
+}
+
+.field__description {
+  margin: -2px 0 2px;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  line-height: 1.45;
+}
+
+.field__error {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--error-text);
+}
+
+/* ---------- Settings: knowledge base ---------- */
+.kb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kb-list__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.kb-list__icon {
+  display: inline-flex;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.kb-list__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kb-list__size {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.kb-list__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.kb-list__remove:hover {
+  color: var(--error-text);
+  background: var(--error-bg);
+}
+
+.kb-add-btn {
+  align-self: flex-start;
 }
 
 .field select,

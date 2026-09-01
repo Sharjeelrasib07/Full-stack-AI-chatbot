@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
 import SettingsPanel from "./components/SettingsPanel";
@@ -11,6 +11,7 @@ import {
   saveTheme,
   loadSettings,
   saveSettings,
+  compileKnowledgeBase,
   makeConversation,
   deriveTitle,
   newId,
@@ -43,6 +44,7 @@ export default function App() {
   const [isSending, setIsSending] = useState(false);
   const [isWaitingForFirstToken, setIsWaitingForFirstToken] = useState(false);
   const [error, setError] = useState(null);
+  const abortControllerRef = useRef(null);
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? conversations[0];
 
@@ -122,6 +124,8 @@ export default function App() {
     setIsWaitingForFirstToken(true);
 
     const assistantId = newId();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const res = await fetch(API_URL, {
@@ -131,7 +135,9 @@ export default function App() {
           messages: payloadMessages,
           model: settings.model,
           systemPrompt: settings.systemPrompt || undefined,
+          knowledgeBase: compileKnowledgeBase(settings.knowledgeBase) || undefined,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -191,11 +197,29 @@ export default function App() {
         setError("The AI didn't return a reply. Please try again.");
       }
     } catch (err) {
-      setError(`Could not reach the backend server at ${API_BASE_URL}. Check that it's running and reachable.`);
+      if (err.name === "AbortError") {
+        // The user clicked Stop — not an error. Whatever text had already
+        // streamed in stays exactly as it is; if nothing had arrived yet,
+        // drop the empty assistant bubble instead of leaving a blank one.
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === convId
+              ? { ...c, messages: c.messages.filter((m) => m.id !== assistantId || m.content) }
+              : c
+          )
+        );
+      } else {
+        setError(`Could not reach the backend server at ${API_BASE_URL}. Check that it's running and reachable.`);
+      }
     } finally {
       setIsSending(false);
       setIsWaitingForFirstToken(false);
+      if (abortControllerRef.current === controller) abortControllerRef.current = null;
     }
+  }
+
+  function handleStop() {
+    abortControllerRef.current?.abort();
   }
 
   // `payload` covers every way a message can arrive: plain typed text,
@@ -346,6 +370,7 @@ export default function App() {
         onRegenerate={handleRegenerate}
         onEditResend={handleEditResend}
         onReaction={handleReaction}
+        onStop={handleStop}
         isSending={isSending}
         onToggleSidebar={() => setIsSidebarOpen((v) => !v)}
         apiBaseUrl={API_BASE_URL}
@@ -353,6 +378,7 @@ export default function App() {
       {isSettingsOpen && (
         <SettingsPanel
           settings={settings}
+          apiBaseUrl={API_BASE_URL}
           onSave={(next) => {
             setSettings(next);
             setIsSettingsOpen(false);

@@ -77,6 +77,7 @@ export default function ChatWindow({
   onRegenerate,
   onEditResend,
   onReaction,
+  onStop,
   isSending,
   onToggleSidebar,
   apiBaseUrl,
@@ -415,6 +416,8 @@ export default function ChatWindow({
           onInput={handleInput}
           onKeyDown={handleKeyDown}
           disabled={isSending}
+          autoComplete="off"
+          spellCheck="true"
         />
 
         {CAN_RECORD_AUDIO && (
@@ -429,10 +432,17 @@ export default function ChatWindow({
           </button>
         )}
 
-        <button type="submit" disabled={sendDisabled}>
-          <IconSend />
-          {isSending ? "Sending…" : "Send"}
-        </button>
+        {isSending ? (
+          <button type="button" className="chat-form__stop" onClick={onStop} title="Stop generating">
+            <IconMicStop />
+            Stop
+          </button>
+        ) : (
+          <button type="submit" disabled={sendDisabled}>
+            <IconSend />
+            Send
+          </button>
+        )}
       </form>
     </section>
   );
